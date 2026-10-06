@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: canopycast
+    env: python
+    buildCommand: "pip install -r requirements.txt && python -m app.datasets.data_loader"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: TABPFN_TOKEN
+        sync: false
+      - key: GEMMA_API_KEY
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false

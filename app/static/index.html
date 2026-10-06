@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CanopyCast — Offline Bio-Climate Field Companion</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <span class="brand-icon">🌲</span>
+        <div>
+          <h1>CanopyCast</h1>
+          <span class="subtext">Offline Bio-Climate Field Companion</span>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="pill pill-green" id="engineStatusBadge">● TabPFN Active</span>
+        <span class="pill pill-outline">HF26: Touch Grass</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Hero Pitch / Open Innovation Banner -->
+    <section class="mission-banner">
+      <div class="banner-content">
+        <h2>Put the screen away. Keep your eyes on the trail.</h2>
+        <p>
+          Running open-weight foundation models on device: <strong>TabPFN</strong> for ecological microclimate regression, 
+          <strong>Gemma 2</strong> for safe botanical advisories, and <strong>ElevenLabs</strong> for hands-free audio dispatches in zero-connectivity backcountry.
+        </p>
+      </div>
+      <div class="preset-selector">
+        <label for="presetSelect">Load Trail Preset:</label>
+        <select id="presetSelect">
+          <option value="">-- Choose Trail Location --</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- Trail Input & Live Dispatch Grid -->
+    <div class="dashboard-grid">
+      
+      <!-- Input Column -->
+      <section class="card input-card">
+        <div class="card-header">
+          <h3>🧭 Trail Telemetry & Sensors</h3>
+          <span class="badge-mini">Field Inputs</span>
+        </div>
+        
+        <form id="trailForm" class="form-grid">
+          
+          <div class="input-group">
+            <label for="elevation">Elevation (ft)</label>
+            <div class="input-range-wrap">
+              <input type="range" id="elevation" min="500" max="10000" step="50" value="3200">
+              <span class="val-display" id="elevationVal">3,200 ft</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="ambientTemp">Air Temp (°F)</label>
+            <div class="input-range-wrap">
+              <input type="range" id="ambientTemp" min="25" max="85" step="1" value="51">
+              <span class="val-display" id="ambientTempVal">51 °F</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="soilTemp">Soil Temp (°F at 2" depth)</label>
+            <div class="input-range-wrap">
+              <input type="range" id="soilTemp" min="30" max="75" step="0.5" value="49">
+              <span class="val-display" id="soilTempVal">49.0 °F</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="daysRain">Days Since Rain</label>
+            <div class="input-range-wrap">
+              <input type="range" id="daysRain" min="0" max="21" step="0.5" value="1.5">
+              <span class="val-display" id="daysRainVal">1.5 days</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="canopyCover">Canopy Density (%)</label>
+            <div class="input-range-wrap">
+              <input type="range" id="canopyCover" min="10" max="100" step="1" value="85">
+              <span class="val-display" id="canopyCoverVal">85%</span>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="weekOfYear">Autumn Week (1-52)</label>
+            <div class="input-range-wrap">
+              <input type="range" id="weekOfYear" min="35" max="48" step="1" value="41">
+              <span class="val-display" id="weekOfYearVal">Week 41 (Mid-Oct)</span>
+            </div>
+          </div>
+
+          <div class="input-group full-width">
+            <label for="hikerNotes">Trail Field Notes / Visual Cues (Optional)</label>
+            <input type="text" id="hikerNotes" placeholder="e.g. Damp mossy hemlock ravine, noticed cluster on dead fallen birch...">
+          </div>
+
+          <button type="submit" id="btnDispatch" class="btn btn-primary full-width">
+            <span class="btn-icon">⚡</span> Run Agent Pipeline & Synthesize Audio
+          </button>
+        </form>
+      </section>
+
+      <!-- Output Column -->
+      <section class="card output-card">
+        <div class="card-header">
+          <h3>📊 TabPFN Foundation Forecast</h3>
+          <span class="pill pill-dark" id="engineTypeLabel">Prior Labs Tabular ML</span>
+        </div>
+
+        <!-- Bio Metrics Cards -->
+        <div class="metric-row">
+          
+          <div class="metric-card foliage-card">
+            <div class="metric-title">🍂 Foliage Peak Status</div>
+            <div class="metric-value" id="foliagePct">--%</div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="foliageProgress" style="width: 0%;"></div>
+            </div>
+            <div class="metric-sub" id="foliageStage">Awaiting trail input...</div>
+          </div>
+
+          <div class="metric-card fungi-card">
+            <div class="metric-title">🍄 High-Value Fungi Flush</div>
+            <div class="metric-value" id="fungiSpecies">--</div>
+            <div class="metric-sub">
+              Confidence: <strong id="fungiConfidence">--%</strong>
+            </div>
+            <div class="botanical-tag" id="botanicalName">Botanical verification</div>
+          </div>
+
+          <div class="metric-card frost-card">
+            <div class="metric-title">❄️ Microclimate Frost Risk</div>
+            <div class="metric-value small-val" id="frostRisk">--</div>
+            <div class="metric-sub" id="frostSub">Thermal soil safety index</div>
+          </div>
+
+        </div>
+
+        <!-- Audio Player Section (Eyes-Up) -->
+        <div class="audio-panel">
+          <div class="audio-header">
+            <div class="audio-title">
+              <span class="pulse-icon">🔊</span>
+              <div>
+                <strong>Eyes-Up Audio Trail Dispatch</strong>
+                <span class="audio-provider" id="audioProvider">ElevenLabs Voice Synthesizer</span>
+              </div>
+            </div>
+            <button id="btnPlayAudio" class="btn btn-audio" disabled>
+              ▶ Listen Hands-Free
+            </button>
+          </div>
+          <audio id="audioElement" preload="auto" style="display:none;"></audio>
+        </div>
+
+        <!-- Gemma 2 Botanical Advisory Markdown -->
+        <div class="advisory-box">
+          <div class="advisory-box-header">
+            <h4>🌿 Gemma 2 Backcountry Field Dispatch</h4>
+            <span class="badge-mini" id="advisorModelBadge">Open-Weight LLM</span>
+          </div>
+          <div class="advisory-content" id="advisoryContent">
+            Click <strong>"Run Agent Pipeline"</strong> or select a trail preset above to generate real-time bio-climatic guidance.
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- Sentry Agent Tracing & Telemetry Inspector -->
+    <section class="card telemetry-card">
+      <div class="card-header">
+        <div class="brand-mini">
+          <span class="telemetry-icon">📡</span>
+          <h3>Sentry Agent Tracing & Span Telemetry</h3>
+        </div>
+        <div class="latency-summary">
+          Total Pipeline Latency: <span id="totalLatency">0 ms</span>
+        </div>
+      </div>
+      <p class="telemetry-desc">
+        Real-time telemetry spans capturing tool execution across TabPFN tabular prediction, Gemma botanical advisory reasoning, and ElevenLabs speech synthesis.
+      </p>
+
+      <div class="trace-table-wrap">
+        <table class="trace-table">
+          <thead>
+            <tr>
+              <th>Operation Span</th>
+              <th>Description</th>
+              <th>Duration (ms)</th>
+              <th>Metadata / Context</th>
+            </tr>
+          </thead>
+          <tbody id="traceTableBody">
+            <tr>
+              <td colspan="4" class="empty-state">No execution spans recorded yet. Run a dispatch to inspect traces.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>
+        Built for <strong>Hacktoberfest 2026 Open-Source AI Challenge (Week 1: Touch Grass)</strong>.
+      </p>
+      <div class="partner-chips">
+        <span>TabPFN (Prior Labs)</span>
+        <span>Google Gemma 2</span>
+        <span>ElevenLabs</span>
+        <span>Sentry SDK</span>
+        <span>Render / DigitalOcean</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
