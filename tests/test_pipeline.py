@@ -27,6 +27,16 @@ def test_presets_endpoint():
     assert len(presets) >= 4
     assert any(p["id"] == "pnw_cascades" for p in presets)
 
+def test_pwa_offline_routes():
+    res_manifest = client.get("/manifest.json")
+    assert res_manifest.status_code == 200
+    assert "CanopyCast" in res_manifest.text
+
+    res_sw = client.get("/sw.js")
+    assert res_sw.status_code == 200
+    assert "canopycast-offline" in res_sw.text
+
+
 def test_tabpfn_prediction_ranges():
     # Test high-elevation autumn scenario
     res = predictor.predict_trail_conditions(

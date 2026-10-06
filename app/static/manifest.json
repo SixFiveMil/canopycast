@@ -1,0 +1,16 @@
+{
+  "name": "CanopyCast — Offline Bio-Climate Field Companion",
+  "short_name": "CanopyCast",
+  "description": "Offline bio-climatic backcountry field advisor for hikers and foragers",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c130e",
+  "theme_color": "#142017",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌲</text></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

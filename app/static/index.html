@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>CanopyCast — Offline Bio-Climate Field Companion</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#142017">
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +25,7 @@
       </div>
       <div class="header-badges">
         <span class="pill pill-green" id="engineStatusBadge">● TabPFN Active</span>
-        <span class="pill pill-outline">HF26: Touch Grass</span>
+        <span class="pill pill-outline" id="pwaStatusBadge">✈️ Offline Ready</span>
       </div>
     </div>
   </header>
@@ -61,7 +63,12 @@
         <form id="trailForm" class="form-grid">
           
           <div class="input-group">
-            <label for="elevation">Elevation (ft)</label>
+            <div class="label-with-action">
+              <label for="elevation">Elevation (ft)</label>
+              <button type="button" id="btnGps" class="btn-micro" title="Auto-detect current GPS elevation">
+                📍 GPS Detect
+              </button>
+            </div>
             <div class="input-range-wrap">
               <input type="range" id="elevation" min="500" max="10000" step="50" value="3200">
               <span class="val-display" id="elevationVal">3,200 ft</span>
@@ -108,9 +115,25 @@
             </div>
           </div>
 
+          <!-- Photo Snap & Field Note -->
           <div class="input-group full-width">
-            <label for="hikerNotes">Trail Field Notes / Visual Cues (Optional)</label>
+            <label for="hikerNotes">Trail Field Notes / Visual Cues</label>
             <input type="text" id="hikerNotes" placeholder="e.g. Damp mossy hemlock ravine, noticed cluster on dead fallen birch...">
+          </div>
+
+          <div class="input-group full-width photo-upload-group">
+            <label>Field Photo Snap (Camera / File)</label>
+            <div class="photo-controls">
+              <label for="photoInput" class="btn btn-secondary btn-sm">
+                📷 Snap / Attach Photo
+              </label>
+              <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none;">
+              <span id="photoFileName" class="photo-filename">No photo attached</span>
+            </div>
+            <div id="photoPreviewContainer" class="photo-preview-wrap" style="display:none;">
+              <img id="photoPreview" alt="Field Photo Preview">
+              <button type="button" id="btnRemovePhoto" class="btn-micro btn-danger">✕ Remove</button>
+            </div>
           </div>
 
           <button type="submit" id="btnDispatch" class="btn btn-primary full-width">
@@ -159,15 +182,20 @@
         <div class="audio-panel">
           <div class="audio-header">
             <div class="audio-title">
-              <span class="pulse-icon">🔊</span>
+              <span class="pulse-icon" id="audioIcon">🔊</span>
               <div>
                 <strong>Eyes-Up Audio Trail Dispatch</strong>
                 <span class="audio-provider" id="audioProvider">ElevenLabs Voice Synthesizer</span>
               </div>
             </div>
-            <button id="btnPlayAudio" class="btn btn-audio" disabled>
-              ▶ Listen Hands-Free
-            </button>
+            <div class="audio-actions">
+              <button id="btnPlayAudio" class="btn btn-audio" disabled>
+                ▶ Listen Hands-Free
+              </button>
+              <button id="btnStopAudio" class="btn-micro" style="display:none;">
+                ⏹ Stop
+              </button>
+            </div>
           </div>
           <audio id="audioElement" preload="auto" style="display:none;"></audio>
         </div>
@@ -181,11 +209,37 @@
           <div class="advisory-content" id="advisoryContent">
             Click <strong>"Run Agent Pipeline"</strong> or select a trail preset above to generate real-time bio-climatic guidance.
           </div>
+          <div class="advisory-actions" id="advisoryActions" style="display:none;">
+            <button type="button" id="btnSaveJournal" class="btn btn-secondary btn-sm">
+              💾 Log to Trail Journal
+            </button>
+          </div>
         </div>
 
       </section>
 
     </div>
+
+    <!-- Trail Journal Drawer (Field Log) -->
+    <section class="card journal-card" id="journalCard" style="display:none;">
+      <div class="card-header">
+        <div class="brand-mini">
+          <span>📓</span>
+          <h3>Hiker's Field Journal & Observations</h3>
+        </div>
+        <div class="journal-actions">
+          <button id="btnExportJournal" class="btn btn-secondary btn-sm">
+            📥 Export Journal (.MD)
+          </button>
+          <button id="btnClearJournal" class="btn-micro btn-danger">
+            Clear
+          </button>
+        </div>
+      </div>
+      <div id="journalEntries" class="journal-entries-grid">
+        <!-- Logged entries render here -->
+      </div>
+    </section>
 
     <!-- Sentry Agent Tracing & Telemetry Inspector -->
     <section class="card telemetry-card">
