@@ -17,6 +17,8 @@ from app.telemetry import telemetry_recorder
 from app.benchmark import benchmark_suite
 from app.lookalikes import get_lookalike_guide
 from app.route_simulator import route_simulator
+from app.gpx_engine import gpx_engine, SAMPLE_GPX_TRAILS
+
 
 
 app = FastAPI(
@@ -136,16 +138,6 @@ class RouteSimulationRequest(BaseModel):
     week_of_year: int = Field(41, ge=1, le=52)
     num_waypoints: int = Field(6, ge=3, le=12)
 
-@app.get("/api/benchmark")
-def get_model_benchmark():
-    """Runs or returns TabPFN vs baseline model comparative metrics."""
-    return benchmark_suite.run_benchmark()
-
-@app.get("/api/lookalike/{species_name}")
-def get_species_lookalike(species_name: str):
-    """Returns diagnostic lookalike checklist for a species."""
-    return get_lookalike_guide(species_name)
-
 @app.post("/api/route-simulation")
 def simulate_route_gradient(req: RouteSimulationRequest):
     """Simulates foliage and fungi flushes across an entire hiking elevation profile."""
@@ -159,6 +151,58 @@ def simulate_route_gradient(req: RouteSimulationRequest):
         week_of_year=req.week_of_year,
         num_waypoints=req.num_waypoints
     )
+
+@app.get("/api/benchmark")
+
+def get_model_benchmark():
+    """Runs or returns TabPFN vs baseline model comparative metrics."""
+    return benchmark_suite.run_benchmark()
+
+@app.get("/api/lookalike/{species_name}")
+def get_species_lookalike(species_name: str):
+    """Returns diagnostic lookalike checklist for a species."""
+    return get_lookalike_guide(species_name)
+
+class GpxAnalysisRequest(BaseModel):
+    gpx_xml: str = Field(..., description="Raw GPX XML string")
+    base_ambient_temp_f: float = Field(54.0, ge=-20, le=115)
+    base_soil_temp_f: float = Field(50.0, ge=20, le=90)
+    days_since_rain: float = Field(2.0, ge=0, le=60)
+    week_of_year: int = Field(41, ge=1, le=52)
+
+@app.get("/api/gpx/samples")
+def get_sample_gpx_trails():
+    """Returns catalog of realistic sample GPX mountain trails."""
+    return [
+        {"id": k, "name": v["name"], "gpx_xml": v["gpx_xml"]}
+        for k, v in SAMPLE_GPX_TRAILS.items()
+    ]
+
+@app.post("/api/gpx/analyze")
+def analyze_gpx_route(req: GpxAnalysisRequest):
+    """Parses real GPX tracks and executes TabPFN predictions along actual trail waypoints."""
+    try:
+        return gpx_engine.parse_and_analyze_gpx(
+            gpx_xml_string=req.gpx_xml,
+            base_ambient_temp_f=req.base_ambient_temp_f,
+            base_soil_temp_f=req.base_soil_temp_f,
+            days_since_rain=req.days_since_rain,
+            week_of_year=req.week_of_year
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to parse GPX track: {str(e)}")
+
+@app.post("/api/gpx/export")
+def export_enriched_gpx(analysis_result: Dict[str, Any]):
+    """Exports a downloadable GPX file embedded with bio-climate waypoint tags for GPS devices."""
+    from fastapi.responses import Response
+    xml_content = gpx_engine.export_enriched_gpx(analysis_result)
+    return Response(
+        content=xml_content,
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": "attachment; filename=canopycast_enriched_trail.gpx"}
+    )
+
 
 @app.post("/api/dispatch")
 def generate_full_trail_dispatch(req: TrailObservationRequest):

@@ -75,6 +75,38 @@ def test_route_simulation_endpoint():
     assert data["waypoints"][0]["elevation_ft"] == 1500.0
     assert data["waypoints"][-1]["elevation_ft"] == 4000.0
 
+def test_gpx_endpoints():
+    # 1. Test sample GPX list
+    r_samples = client.get("/api/gpx/samples")
+    assert r_samples.status_code == 200
+    samples = r_samples.json()
+    assert len(samples) >= 2
+    assert "mt_hood_mirror_lake" in [s["id"] for s in samples]
+
+    # 2. Test GPX analyze endpoint
+    hood_xml = samples[0]["gpx_xml"]
+    r_analyze = client.post("/api/gpx/analyze", json={
+        "gpx_xml": hood_xml,
+        "base_ambient_temp_f": 52.0,
+        "base_soil_temp_f": 49.0,
+        "days_since_rain": 2.0,
+        "week_of_year": 41
+    })
+    assert r_analyze.status_code == 200
+    analysis = r_analyze.json()
+    assert "summary" in analysis
+    assert "waypoints" in analysis
+    assert analysis["summary"]["total_distance_miles"] > 0
+    assert len(analysis["waypoints"]) >= 5
+
+    # 3. Test GPX export endpoint
+    r_export = client.post("/api/gpx/export", json=analysis)
+    assert r_export.status_code == 200
+    assert "application/gpx+xml" in r_export.headers.get("content-type", "")
+    assert "<gpx" in r_export.text
+    assert "</gpx>" in r_export.text
+
+
 def test_tabpfn_prediction_ranges():
     res = predictor.predict_trail_conditions(
         elevation_ft=4500,

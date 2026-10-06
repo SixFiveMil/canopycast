@@ -67,7 +67,24 @@ if __name__ == "__main__":
         'num_waypoints': 6
     })
 
+    print("\n--- GPX ENDPOINTS TESTING ---")
+    gpx_samples = request_endpoint('GET', '/api/gpx/samples')
+    if gpx_samples:
+        hood_xml = gpx_samples[0]['gpx_xml']
+        gpx_res = request_endpoint('POST', '/api/gpx/analyze', {
+            'gpx_xml': hood_xml,
+            'base_ambient_temp_f': 52.0,
+            'base_soil_temp_f': 49.0,
+            'days_since_rain': 2.0,
+            'week_of_year': 41
+        })
+        if gpx_res:
+            print(f"  -> Analyzed GPX: {gpx_res['trail_name']} ({gpx_res['summary']['total_distance_miles']} mi)")
+            print(f"  -> Flushes found: {gpx_res['summary']['fungi_flushes_found']} zones")
+            request_endpoint('POST', '/api/gpx/export', gpx_res)
+
     print("\n--- BOUNDARY / ERROR TESTING ---")
+
     # Test invalid json
     request_endpoint('POST', '/api/predict', {'elevation_ft': -500})
     request_endpoint('POST', '/api/predict', {'elevation_ft': 'invalid_string'})

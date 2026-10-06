@@ -267,8 +267,73 @@
 
     </div>
 
+    <!-- Feature: Real GPX Trail Track Importer & Enriched Exporter -->
+    <section class="card gpx-card">
+      <div class="card-header">
+        <div class="brand-mini">
+          <span>🗺️</span>
+          <h3>GPX Trail Track Analyzer & Bio-Climate Exporter (AllTrails / Garmin)</h3>
+        </div>
+        <div class="gpx-sample-buttons">
+          <span style="font-size:0.75rem; color:var(--text-muted);">Try Sample:</span>
+          <button type="button" id="btnSampleGpxHood" class="btn-micro">🏔️ Mt. Hood (OR)</button>
+          <button type="button" id="btnSampleGpxBlueRidge" class="btn-micro">🍁 Blue Ridge (NC)</button>
+        </div>
+      </div>
+      <p class="telemetry-desc">
+        Drop any standard <code>.gpx</code> GPS file from Garmin, AllTrails, or Strava. CanopyCast evaluates TabPFN predictions along actual trail coordinates and generates an enriched GPX with fungi waypoints for your GPS watch or phone app.
+      </p>
+
+      <div class="gpx-layout">
+        <!-- Dropzone -->
+        <div class="gpx-dropzone" id="gpxDropZone">
+          <span class="gpx-drop-icon">📂</span>
+          <div class="gpx-drop-text">
+            <strong>Drag & Drop .gpx Trail File Here</strong>
+            <span>or click to browse from device</span>
+          </div>
+          <input type="file" id="gpxFileInput" accept=".gpx,application/gpx+xml,text/xml" style="display:none;">
+          <span id="gpxSelectedName" class="photo-filename">No GPX loaded yet</span>
+        </div>
+
+        <!-- GPX Output Profile -->
+        <div class="gpx-results-panel" id="gpxResultsPanel" style="display:none;">
+          <div class="gpx-metrics-row">
+            <div class="gpx-metric">
+              <span class="gpx-metric-label">Trail Name</span>
+              <strong id="gpxTrailName">--</strong>
+            </div>
+            <div class="gpx-metric">
+              <span class="gpx-metric-label">Distance</span>
+              <strong id="gpxDistance">-- mi</strong>
+            </div>
+            <div class="gpx-metric">
+              <span class="gpx-metric-label">Elevation Gain</span>
+              <strong id="gpxGain">-- ft</strong>
+            </div>
+            <div class="gpx-metric">
+              <span class="gpx-metric-label">Mushroom Flushes</span>
+              <strong id="gpxFlushesCount" style="color:var(--primary-green);">--</strong>
+            </div>
+          </div>
+
+          <!-- SVG Elevation Profile Chart -->
+          <div class="gpx-elevation-chart-wrap">
+            <svg id="gpxElevationSvg" viewBox="0 0 700 180" preserveAspectRatio="none" class="gpx-svg-chart"></svg>
+          </div>
+
+          <div class="gpx-actions">
+            <button type="button" id="btnExportEnrichedGpx" class="btn btn-secondary btn-sm">
+              📥 Download Enriched GPX (with Fungi &amp; Foliage Waypoints)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Feature 2: Trail Elevation Profile & Foliage Gradient Simulator -->
     <section class="card route-simulator-card">
+
       <div class="card-header">
         <div class="brand-mini">
           <span>📈</span>

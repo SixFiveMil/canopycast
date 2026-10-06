@@ -82,6 +82,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const benchmarkTableBody = document.getElementById("benchmarkTableBody");
   const btnPrintCard = document.getElementById("btnPrintCard");
 
+  // GPX DOM Elements
+  const gpxDropZone = document.getElementById("gpxDropZone");
+  const gpxFileInput = document.getElementById("gpxFileInput");
+  const gpxSelectedName = document.getElementById("gpxSelectedName");
+  const gpxResultsPanel = document.getElementById("gpxResultsPanel");
+  const gpxTrailName = document.getElementById("gpxTrailName");
+  const gpxDistance = document.getElementById("gpxDistance");
+  const gpxGain = document.getElementById("gpxGain");
+  const gpxFlushesCount = document.getElementById("gpxFlushesCount");
+  const gpxElevationSvg = document.getElementById("gpxElevationSvg");
+  const btnExportEnrichedGpx = document.getElementById("btnExportEnrichedGpx");
+  const btnSampleGpxHood = document.getElementById("btnSampleGpxHood");
+  const btnSampleGpxBlueRidge = document.getElementById("btnSampleGpxBlueRidge");
+  let latestGpxAnalysis = null;
+
+
   // Load presets
   fetch("/api/presets")
     .then(r => r.json())
@@ -427,7 +443,195 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Feature: GPX Trail Track Analyzer Handlers
+  gpxDropZone.addEventListener("click", () => gpxFileInput.click());
+
+  gpxDropZone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    gpxDropZone.classList.add("dragover");
+  });
+
+  gpxDropZone.addEventListener("dragleave", () => {
+    gpxDropZone.classList.remove("dragover");
+  });
+
+  gpxDropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    gpxDropZone.classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (file) handleGpxFile(file);
+  });
+
+  gpxFileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) handleGpxFile(file);
+  });
+
+  function handleGpxFile(file) {
+    gpxSelectedName.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      runGpxAnalysis(ev.target.result);
+    };
+    reader.readAsText(file);
+  }
+
+  // Sample GPX Trail Buttons
+  let sampleGpxMap = {};
+  fetch("/api/gpx/samples")
+    .then(r => r.json())
+    .then(samples => {
+      samples.forEach(s => { sampleGpxMap[s.id] = s; });
+    })
+    .catch(err => console.error("Error loading sample GPX trails:", err));
+
+  btnSampleGpxHood.addEventListener("click", () => {
+    if (sampleGpxMap["mt_hood_mirror_lake"]) {
+      gpxSelectedName.textContent = sampleGpxMap["mt_hood_mirror_lake"].name;
+      runGpxAnalysis(sampleGpxMap["mt_hood_mirror_lake"].gpx_xml);
+    }
+  });
+
+  btnSampleGpxBlueRidge.addEventListener("click", () => {
+    if (sampleGpxMap["blue_ridge_craggy"]) {
+      gpxSelectedName.textContent = sampleGpxMap["blue_ridge_craggy"].name;
+      runGpxAnalysis(sampleGpxMap["blue_ridge_craggy"].gpx_xml);
+    }
+  });
+
+  function runGpxAnalysis(xmlString) {
+    gpxSelectedName.textContent += " (Analyzing TabPFN Bio-Climate...)";
+    fetch("/api/gpx/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        gpx_xml: xmlString,
+        base_ambient_temp_f: parseFloat(document.getElementById("ambientTemp").value),
+        base_soil_temp_f: parseFloat(document.getElementById("soilTemp").value),
+        days_since_rain: parseFloat(document.getElementById("daysRain").value),
+        week_of_year: parseInt(document.getElementById("weekOfYear").value)
+      })
+    })
+    .then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.detail || "GPX parse error"); });
+      return r.json();
+    })
+    .then(data => {
+      latestGpxAnalysis = data;
+      renderGpxResults(data);
+    })
+    .catch(err => {
+      alert("Error analyzing GPX track: " + err.message);
+    });
+  }
+
+  function renderGpxResults(data) {
+    gpxResultsPanel.style.display = "flex";
+    gpxTrailName.textContent = data.trail_name;
+    gpxDistance.textContent = data.summary.total_distance_miles + " mi";
+    gpxGain.textContent = "+ " + Number(data.summary.elevation_gain_ft).toLocaleString() + " ft";
+    gpxFlushesCount.textContent = data.summary.fungi_flushes_found + " zones";
+
+    renderGpxSvgChart(data);
+  }
+
+  function renderGpxSvgChart(data) {
+    const wpts = data.waypoints;
+    if (!wpts || wpts.length < 2) return;
+
+    const svgW = 700;
+    const svgH = 180;
+    const padX = 40;
+    const padY = 25;
+
+    const minEle = data.summary.min_elevation_ft;
+    const maxEle = data.summary.max_elevation_ft || (minEle + 500);
+    const maxDist = data.summary.total_distance_miles || 1.0;
+
+    const scaleX = (dist) => padX + (dist / maxDist) * (svgW - padX * 2);
+    const scaleY = (ele) => svgH - padY - ((ele - minEle) / Math.max(1, maxEle - minEle)) * (svgH - padY * 2);
+
+    let pathD = `M ${scaleX(wpts[0].distance_miles)} ${scaleY(wpts[0].elevation_ft)}`;
+    wpts.forEach(w => {
+      pathD += ` L ${scaleX(w.distance_miles)} ${scaleY(w.elevation_ft)}`;
+    });
+
+    const fillD = pathD + ` L ${scaleX(wpts[wpts.length - 1].distance_miles)} ${svgH - padY} L ${scaleX(wpts[0].distance_miles)} ${svgH - padY} Z`;
+
+    let svgInner = `
+      <defs>
+        <linearGradient id="elevFillGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2ecc71" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#2ecc71" stop-opacity="0.0"/>
+        </linearGradient>
+      </defs>
+      <!-- Base Axis -->
+      <line x1="${padX}" y1="${svgH - padY}" x2="${svgW - padX}" y2="${svgH - padY}" stroke="#213325" stroke-width="1"/>
+      <path d="${fillD}" fill="url(#elevFillGrad)" />
+      <path d="${pathD}" fill="none" stroke="#2ecc71" stroke-width="2.5" />
+    `;
+
+    // Render Waypoint Markers & Fungi Icons
+    wpts.forEach(w => {
+      const cx = scaleX(w.distance_miles);
+      const cy = scaleY(w.elevation_ft);
+      const isPeak = (data.summary.peak_foliage_point && w.distance_miles === data.summary.peak_foliage_point.mile);
+
+      // Node point
+      svgInner += `<circle cx="${cx}" cy="${cy}" r="4" fill="${isPeak ? '#f39c12' : '#2ecc71'}" stroke="#060a07" stroke-width="1.5"/>`;
+
+      // Fungi flush marker
+      if (w.fungi_species !== "No Flush Detected") {
+        svgInner += `
+          <g transform="translate(${cx - 10}, ${cy - 26})">
+            <text font-size="14">🍄</text>
+            <title>${escapeHtml(w.fungi_species)} (${w.fungi_confidence_pct}%) at ${w.elevation_ft} ft</title>
+          </g>
+        `;
+      }
+
+      // Peak foliage banner
+      if (isPeak) {
+        svgInner += `
+          <g transform="translate(${cx - 10}, ${cy - 28})">
+            <text font-size="14">🍁</text>
+            <title>Peak Foliage: ${w.foliage_peak_pct}% at Mile ${w.distance_miles}</title>
+          </g>
+        `;
+      }
+    });
+
+    // Axis labels
+    svgInner += `
+      <text x="${padX}" y="${svgH - 6}" font-size="10" fill="#8fa593">0 mi (${minEle.toLocaleString()} ft)</text>
+      <text x="${svgW - padX}" y="${svgH - 6}" font-size="10" fill="#8fa593" text-anchor="end">${maxDist} mi (${maxEle.toLocaleString()} ft)</text>
+    `;
+
+    gpxElevationSvg.innerHTML = svgInner;
+  }
+
+  // Export Enriched GPX
+  btnExportEnrichedGpx.addEventListener("click", () => {
+    if (!latestGpxAnalysis) return;
+    fetch("/api/gpx/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(latestGpxAnalysis)
+    })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `canopycast_${latestGpxAnalysis.trail_name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_enriched.gpx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => alert("Error exporting GPX: " + err));
+  });
+
   // Feature 2: Route Elevation & Foliage Simulator
+
   btnSimulateRoute.addEventListener("click", () => {
     btnSimulateRoute.disabled = true;
     btnSimulateRoute.textContent = "Simulating Route...";
