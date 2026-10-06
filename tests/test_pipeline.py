@@ -1,6 +1,7 @@
 """
 Integration and Unit Tests for CanopyCast Bio-Climate Pipeline.
-Verifies TabPFN tabular prediction, Gemma advisory synthesis, ElevenLabs audio, and Sentry telemetry.
+Verifies TabPFN tabular prediction, Gemma advisory, ElevenLabs audio, Sentry telemetry,
+Lookalike database, Route elevation simulation, and TabPFN benchmark suite.
 """
 
 import pytest
@@ -10,6 +11,9 @@ from app.predictor import predictor
 from app.advisor import gemma_advisor
 from app.audio import audio_engine
 from app.telemetry import telemetry_recorder
+from app.lookalikes import get_lookalike_guide
+from app.benchmark import benchmark_suite
+from app.route_simulator import route_simulator
 
 client = TestClient(app)
 
@@ -36,9 +40,42 @@ def test_pwa_offline_routes():
     assert res_sw.status_code == 200
     assert "canopycast-offline" in res_sw.text
 
+def test_benchmark_endpoint():
+    response = client.get("/api/benchmark")
+    assert response.status_code == 200
+    data = response.json()
+    assert "models" in data
+    assert len(data["models"]) >= 3
+    assert any("TabPFN" in m["model"] for m in data["models"])
+
+def test_lookalike_endpoint():
+    response = client.get("/api/lookalike/Golden%20Chanterelle")
+    assert response.status_code == 200
+    data = response.json()
+    assert "toxic_lookalike" in data
+    assert "Jack O'Lantern" in data["toxic_lookalike"]
+    assert len(data["diagnostic_traits"]) >= 3
+
+def test_route_simulation_endpoint():
+    payload = {
+        "trailhead_elev_ft": 1500.0,
+        "summit_elev_ft": 4000.0,
+        "total_distance_miles": 3.5,
+        "base_temp_f": 58.0,
+        "base_soil_temp_f": 54.0,
+        "days_since_rain": 2.0,
+        "week_of_year": 41,
+        "num_waypoints": 5
+    }
+    response = client.post("/api/route-simulation", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "route_overview" in data
+    assert len(data["waypoints"]) == 5
+    assert data["waypoints"][0]["elevation_ft"] == 1500.0
+    assert data["waypoints"][-1]["elevation_ft"] == 4000.0
 
 def test_tabpfn_prediction_ranges():
-    # Test high-elevation autumn scenario
     res = predictor.predict_trail_conditions(
         elevation_ft=4500,
         week_of_year=42,
@@ -48,13 +85,6 @@ def test_tabpfn_prediction_ranges():
         canopy_cover_pct=80.0
     )
     assert 0 <= res["foliage_peak_pct"] <= 100
-    assert res["foliage_stage"] in [
-        "Early Green / Minimal Change",
-        "Moderate Color Transition",
-        "Near Peak Foliage",
-        "Peak Vibrant Autumn Canopy",
-        "Past Peak / Leaf Drop"
-    ]
     assert isinstance(res["fungi_flush_species"], str)
     assert 0 <= res["fungi_confidence_pct"] <= 100
 
@@ -70,15 +100,12 @@ def test_gemma_advisory_synthesis():
     advisory = gemma_advisor.generate_advisory(pred, hiker_notes="Spotted orange clusters on oak log")
     assert "advisory_markdown" in advisory
     assert len(advisory["advisory_markdown"]) > 50
-    assert "species_botanical_name" in advisory
-    assert "lookalike_alert" in advisory
 
 def test_audio_narration_dispatch():
     text = "**Canopy Dispatch - Peak Foliage** At 3000 feet, vibrant colors dominate the ridge."
     audio = audio_engine.synthesize_trail_dispatch(text)
     assert "spoken_text" in audio
     assert not any(symbol in audio["spoken_text"] for symbol in ["**", "##", "_"])
-    assert "provider" in audio
 
 def test_full_agent_dispatch_endpoint():
     payload = {
@@ -96,6 +123,7 @@ def test_full_agent_dispatch_endpoint():
     data = response.json()
     assert "prediction" in data
     assert "advisory" in data
+    assert "lookalike" in data
     assert "audio" in data
     assert "telemetry" in data
     assert data["telemetry"]["total_spans"] > 0

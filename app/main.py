@@ -14,6 +14,10 @@ from app.predictor import predictor
 from app.advisor import gemma_advisor
 from app.audio import audio_engine
 from app.telemetry import telemetry_recorder
+from app.benchmark import benchmark_suite
+from app.lookalikes import get_lookalike_guide
+from app.route_simulator import route_simulator
+
 
 app = FastAPI(
     title="CanopyCast Bio-Climate Field Companion",
@@ -122,6 +126,40 @@ def predict_conditions(req: TrailObservationRequest):
         slope_degrees=req.slope_degrees
     )
 
+class RouteSimulationRequest(BaseModel):
+    trailhead_elev_ft: float = Field(1800.0, ge=0, le=14000)
+    summit_elev_ft: float = Field(4200.0, ge=0, le=14000)
+    total_distance_miles: float = Field(4.0, ge=0.5, le=30.0)
+    base_temp_f: float = Field(56.0, ge=-20, le=115)
+    base_soil_temp_f: float = Field(52.0, ge=20, le=90)
+    days_since_rain: float = Field(2.0, ge=0, le=60)
+    week_of_year: int = Field(41, ge=1, le=52)
+    num_waypoints: int = Field(6, ge=3, le=12)
+
+@app.get("/api/benchmark")
+def get_model_benchmark():
+    """Runs or returns TabPFN vs baseline model comparative metrics."""
+    return benchmark_suite.run_benchmark()
+
+@app.get("/api/lookalike/{species_name}")
+def get_species_lookalike(species_name: str):
+    """Returns diagnostic lookalike checklist for a species."""
+    return get_lookalike_guide(species_name)
+
+@app.post("/api/route-simulation")
+def simulate_route_gradient(req: RouteSimulationRequest):
+    """Simulates foliage and fungi flushes across an entire hiking elevation profile."""
+    return route_simulator.simulate_hike_route(
+        trailhead_elev_ft=req.trailhead_elev_ft,
+        summit_elev_ft=req.summit_elev_ft,
+        total_distance_miles=req.total_distance_miles,
+        base_temp_f=req.base_temp_f,
+        base_soil_temp_f=req.base_soil_temp_f,
+        days_since_rain=req.days_since_rain,
+        week_of_year=req.week_of_year,
+        num_waypoints=req.num_waypoints
+    )
+
 @app.post("/api/dispatch")
 def generate_full_trail_dispatch(req: TrailObservationRequest):
     """Executes the complete open-source agent pipeline and returns telemetry."""
@@ -139,15 +177,19 @@ def generate_full_trail_dispatch(req: TrailObservationRequest):
     # 2. Gemma botanical advisory
     advisory = gemma_advisor.generate_advisory(pred, hiker_notes=req.hiker_notes or "")
 
-    # 3. ElevenLabs eyes-up audio narration
+    # 3. Lookalike diagnostic guide
+    lookalike_guide = get_lookalike_guide(pred["fungi_flush_species"])
+
+    # 4. ElevenLabs eyes-up audio narration
     audio_dispatch = audio_engine.synthesize_trail_dispatch(advisory["advisory_markdown"])
 
-    # 4. Telemetry spans
-    recent_traces = telemetry_recorder.get_latest_traces(limit=3)
+    # 5. Telemetry spans
+    recent_traces = telemetry_recorder.get_latest_traces(limit=4)
 
     return {
         "prediction": pred,
         "advisory": advisory,
+        "lookalike": lookalike_guide,
         "audio": audio_dispatch,
         "telemetry": {
             "traces": recent_traces,
@@ -155,6 +197,7 @@ def generate_full_trail_dispatch(req: TrailObservationRequest):
             "total_latency_ms": sum(t.get("duration_ms", 0) for t in recent_traces)
         }
     }
+
 
 @app.get("/api/telemetry")
 def get_telemetry():

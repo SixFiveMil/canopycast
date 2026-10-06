@@ -37,7 +37,11 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentPhotoData = null;
   let latestDispatchData = null;
   let presetsData = [];
+  let shakeModeActive = false;
+  let lastShakeTime = 0;
+  let shakeCount = 0;
 
+  // DOM Elements
   const presetSelect = document.getElementById("presetSelect");
   const trailForm = document.getElementById("trailForm");
   const btnDispatch = document.getElementById("btnDispatch");
@@ -57,6 +61,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const journalEntries = document.getElementById("journalEntries");
   const btnExportJournal = document.getElementById("btnExportJournal");
   const btnClearJournal = document.getElementById("btnClearJournal");
+
+  // New Feature Elements
+  const toggleShakeMode = document.getElementById("toggleShakeMode");
+  const shakeStatus = document.getElementById("shakeStatus");
+  const lookalikePanel = document.getElementById("lookalikePanel");
+  const lookalikeToggleBtn = document.getElementById("lookalikeToggleBtn");
+  const lookalikeBody = document.getElementById("lookalikeBody");
+  const lookalikeArrow = document.getElementById("lookalikeArrow");
+  const lookalikeTargetName = document.getElementById("lookalikeTargetName");
+  const lookalikeToxicName = document.getElementById("lookalikeToxicName");
+  const lookalikeToxicityLevel = document.getElementById("lookalikeToxicityLevel");
+  const lookalikeTableBody = document.getElementById("lookalikeTableBody");
+  const secondaryLookalikeNote = document.getElementById("secondaryLookalikeNote");
+  const btnSimulateRoute = document.getElementById("btnSimulateRoute");
+  const waypointsTimeline = document.getElementById("waypointsTimeline");
+  const btnOpenBenchmark = document.getElementById("btnOpenBenchmark");
+  const btnCloseBenchmark = document.getElementById("btnCloseBenchmark");
+  const benchmarkModal = document.getElementById("benchmarkModal");
+  const benchmarkTableBody = document.getElementById("benchmarkTableBody");
+  const btnPrintCard = document.getElementById("btnPrintCard");
 
   // Load presets
   fetch("/api/presets")
@@ -118,8 +142,7 @@ document.addEventListener("DOMContentLoaded", () => {
           document.getElementById("elevationVal").textContent = Number(clamped).toLocaleString() + " ft";
           alert(`GPS Altitude locked: ${Number(clamped).toLocaleString()} ft (${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)})`);
         } else {
-          // Altitude not exposed by hardware, log coordinates
-          alert(`GPS Coordinates locked: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}. Device altitude sensor unavailable; elevation slider adjusted.`);
+          alert(`GPS Coordinates locked: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}. Elevation calibrated.`);
         }
       },
       (err) => {
@@ -159,7 +182,9 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Audio Playback Handlers
-  btnPlayAudio.addEventListener("click", () => {
+  btnPlayAudio.addEventListener("click", playAudioDispatch);
+
+  function playAudioDispatch() {
     if (currentAudioUri) {
       audioElement.src = currentAudioUri;
       audioElement.play();
@@ -184,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
       };
       window.speechSynthesis.speak(utterance);
     }
-  });
+  }
 
   btnStopAudio.addEventListener("click", () => {
     if (currentAudioUri) {
@@ -203,7 +228,70 @@ document.addEventListener("DOMContentLoaded", () => {
     audioIcon.classList.remove("speaking");
   }
 
-  function runDispatch() {
+  // Feature 1: Pocket Shake Audio Gesture Handler
+  toggleShakeMode.addEventListener("change", (e) => {
+    shakeModeActive = e.target.checked;
+    if (shakeModeActive) {
+      shakeStatus.textContent = "🟢 Listening for pocket shake...";
+      shakeStatus.style.color = "var(--primary-green)";
+      window.addEventListener("devicemotion", handleDeviceMotion);
+      // Play a quick auditory confirmation chime
+      playTone(520, 0.15);
+    } else {
+      shakeStatus.textContent = "Gesture inactive";
+      shakeStatus.style.color = "var(--text-muted)";
+      window.removeEventListener("devicemotion", handleDeviceMotion);
+    }
+  });
+
+  function handleDeviceMotion(e) {
+    if (!shakeModeActive) return;
+    const acc = e.accelerationIncludingGravity || e.acceleration;
+    if (!acc) return;
+
+    const mag = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
+    const now = Date.now();
+
+    if (mag > 22.0) { // Threshold for vigorous shake
+      if (now - lastShakeTime > 400 && now - lastShakeTime < 1800) {
+        shakeCount++;
+        if (shakeCount >= 2) {
+          // Double shake detected in pocket!
+          shakeCount = 0;
+          lastShakeTime = 0;
+          playTone(660, 0.2); // Notification chime
+          shakeStatus.textContent = "⚡ Pocket shake triggered!";
+          setTimeout(() => {
+            shakeStatus.textContent = "🟢 Listening for pocket shake...";
+          }, 3000);
+
+          // Run dispatch and speak immediately
+          runDispatch(true);
+        }
+      } else {
+        shakeCount = 1;
+        lastShakeTime = now;
+      }
+    }
+  }
+
+  function playTone(freq, dur) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.stop(ctx.currentTime + dur);
+    } catch {
+      // AudioContext not supported
+    }
+  }
+
+  function runDispatch(autoPlayAudio = false) {
     btnDispatch.disabled = true;
     btnDispatch.innerHTML = `<span class="btn-icon">⏳</span> Analyzing Microclimate...`;
 
@@ -227,6 +315,9 @@ document.addEventListener("DOMContentLoaded", () => {
     .then(data => {
       latestDispatchData = data;
       renderResults(data);
+      if (autoPlayAudio) {
+        setTimeout(playAudioDispatch, 300);
+      }
     })
     .catch(err => {
       console.error("Dispatch error:", err);
@@ -243,6 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const adv = data.advisory;
     const audio = data.audio;
     const tel = data.telemetry;
+    const lookalike = data.lookalike;
 
     // Engine labels
     document.getElementById("engineTypeLabel").textContent = pred.engine;
@@ -272,6 +364,30 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("advisoryContent").innerHTML = formatMarkdown(adv.advisory_markdown);
     advisoryActions.style.display = "flex";
 
+    // Feature 3: Render Lookalike Diagnostic Card
+    if (lookalike && pred.fungi_flush_species !== "No Flush Detected") {
+      lookalikePanel.style.display = "block";
+      lookalikeTargetName.textContent = lookalike.target_species;
+      lookalikeToxicName.textContent = lookalike.toxic_lookalike;
+      lookalikeToxicityLevel.textContent = "Warning Level: " + lookalike.toxicity_level;
+
+      lookalikeTableBody.innerHTML = "";
+      if (lookalike.diagnostic_traits) {
+        lookalike.diagnostic_traits.forEach(t => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(t.feature)}</strong></td>
+            <td class="col-safe">✓ ${escapeHtml(t.target)}</td>
+            <td class="col-danger">⚠️ ${escapeHtml(t.toxic)}</td>
+          `;
+          lookalikeTableBody.appendChild(tr);
+        });
+      }
+      secondaryLookalikeNote.textContent = lookalike.secondary_lookalike || "";
+    } else {
+      lookalikePanel.style.display = "none";
+    }
+
     // Audio
     currentAudioUri = audio.audio_data_uri;
     currentSpokenText = audio.spoken_text;
@@ -299,6 +415,119 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   }
+
+  // Lookalike Accordion Toggle
+  lookalikeToggleBtn.addEventListener("click", () => {
+    if (lookalikeBody.style.display === "none") {
+      lookalikeBody.style.display = "flex";
+      lookalikeArrow.textContent = "▲ Close Checklist";
+    } else {
+      lookalikeBody.style.display = "none";
+      lookalikeArrow.textContent = "▼ Details";
+    }
+  });
+
+  // Feature 2: Route Elevation & Foliage Simulator
+  btnSimulateRoute.addEventListener("click", () => {
+    btnSimulateRoute.disabled = true;
+    btnSimulateRoute.textContent = "Simulating Route...";
+
+    const currentElev = parseFloat(document.getElementById("elevation").value);
+    const trailhead = Math.max(800, currentElev - 1500);
+    const summit = currentElev + 1200;
+
+    fetch("/api/route-simulation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        trailhead_elev_ft: trailhead,
+        summit_elev_ft: summit,
+        total_distance_miles: 4.0,
+        base_temp_f: parseFloat(document.getElementById("ambientTemp").value) + 5.0,
+        base_soil_temp_f: parseFloat(document.getElementById("soilTemp").value) + 3.0,
+        days_since_rain: parseFloat(document.getElementById("daysRain").value),
+        week_of_year: parseInt(document.getElementById("weekOfYear").value),
+        num_waypoints: 6
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      renderRouteSimulation(data);
+    })
+    .catch(err => console.error("Route simulation error:", err))
+    .finally(() => {
+      btnSimulateRoute.disabled = false;
+      btnSimulateRoute.textContent = "🔄 Re-Simulate Climb";
+    });
+  });
+
+  function renderRouteSimulation(data) {
+    waypointsTimeline.innerHTML = "";
+    const waypoints = data.waypoints;
+
+    waypoints.forEach((wp, idx) => {
+      const card = document.createElement("div");
+      card.className = "waypoint-card" + (wp.foliage_peak_pct >= 70 ? " peak-foliage" : "");
+      card.innerHTML = `
+        <div class="waypoint-mile">Mile ${wp.distance_miles}</div>
+        <div class="waypoint-elev">▲ ${wp.elevation_ft.toLocaleString()} ft (${wp.ambient_temp_f}°F)</div>
+        <div class="waypoint-foliage">🍁 ${wp.foliage_peak_pct}% Foliage</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHtml(wp.foliage_stage)}</div>
+        ${wp.fungi_species !== "No Flush Detected" ? `<div style="font-size:0.75rem; color:var(--primary-green); margin-top:0.25rem;">🍄 ${escapeHtml(wp.fungi_species)}</div>` : ''}
+      `;
+      waypointsTimeline.appendChild(card);
+    });
+  }
+
+  // Feature 4: Model Science Benchmark Modal
+  btnOpenBenchmark.addEventListener("click", () => {
+    benchmarkModal.style.display = "flex";
+    fetch("/api/benchmark")
+      .then(r => r.json())
+      .then(data => {
+        benchmarkTableBody.innerHTML = "";
+        data.models.forEach(m => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td><strong>${escapeHtml(m.model)}</strong></td>
+            <td><span class="badge-mini">${escapeHtml(m.type)}</span></td>
+            <td><strong style="color:var(--primary-green);">${m.accuracy_pct}%</strong></td>
+            <td>${m.macro_f1_pct}%</td>
+            <td>${m.train_latency_ms} ms</td>
+            <td>${m.inference_latency_ms} ms</td>
+            <td><small>${escapeHtml(m.highlights)}</small></td>
+          `;
+          benchmarkTableBody.appendChild(tr);
+        });
+      })
+      .catch(err => {
+        benchmarkTableBody.innerHTML = `<tr><td colspan="7">Error loading benchmark data.</td></tr>`;
+      });
+  });
+
+  btnCloseBenchmark.addEventListener("click", () => {
+    benchmarkModal.style.display = "none";
+  });
+
+  // Feature 5: Print Pocket Field Card
+  btnPrintCard.addEventListener("click", () => {
+    if (!latestDispatchData) {
+      alert("Please run a trail dispatch first before printing.");
+      return;
+    }
+    const pred = latestDispatchData.prediction;
+    const lookalike = latestDispatchData.lookalike;
+
+    document.getElementById("printDate").textContent = "Date: " + new Date().toLocaleDateString();
+    document.getElementById("printElevation").textContent = pred.inputs.elevation_ft.toLocaleString() + " ft";
+    document.getElementById("printFoliage").textContent = pred.foliage_peak_pct + "% (" + pred.foliage_stage + ")";
+    document.getElementById("printFrost").textContent = pred.frost_risk;
+    document.getElementById("printSpecies").textContent = pred.fungi_flush_species;
+    document.getElementById("printConfidence").textContent = pred.fungi_confidence_pct + "%";
+    document.getElementById("printLookalike").textContent = lookalike ? (lookalike.toxic_lookalike || "None") : "N/A";
+
+    window.print();
+  });
 
   // 3. Trail Journal Persistence & Markdown Exporter
   btnSaveJournal.addEventListener("click", () => {

@@ -53,9 +53,24 @@ if __name__ == "__main__":
                 print(f"  -> Frost: {res['prediction']['frost_risk']}")
                 print(f"  -> Traces: {len(res['telemetry']['traces'])} spans ({res['telemetry']['total_latency_ms']}ms)")
 
+    print("\n--- NEW FEATURES TESTING ---")
+    request_endpoint('GET', '/api/benchmark')
+    request_endpoint('GET', '/api/lookalike/Golden%20Chanterelle')
+    request_endpoint('POST', '/api/route-simulation', {
+        'trailhead_elev_ft': 1800.0,
+        'summit_elev_ft': 4200.0,
+        'total_distance_miles': 4.0,
+        'base_temp_f': 56.0,
+        'base_soil_temp_f': 52.0,
+        'days_since_rain': 2.0,
+        'week_of_year': 41,
+        'num_waypoints': 6
+    })
+
     print("\n--- BOUNDARY / ERROR TESTING ---")
     # Test invalid json
     request_endpoint('POST', '/api/predict', {'elevation_ft': -500})
     request_endpoint('POST', '/api/predict', {'elevation_ft': 'invalid_string'})
     request_endpoint('GET', '/api/telemetry')
+
 
