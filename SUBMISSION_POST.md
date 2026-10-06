@@ -18,11 +18,12 @@ Designed for hikers, fall-foliage watchers, and wild mushroom foragers venturing
 1. **Predicts Autumn Canopy Saturation (%) & Fungi Flushes**: Using Prior Labs' **TabPFN** tabular foundation model, it analyzes microclimate sensor readings (elevation, soil temperature, days since rainfall, canopy cover, and seasonal week) to forecast autumn color peaks and edible fungi flushes (Chanterelles, Porcini, Lion's Mane, Chicken of the Woods).
 2. **🔍 Identifies Safe vs. Toxic Lookalikes**: Renders instant diagnostic verification checklists (e.g. blunt decurrent ridges vs. true sharp gills for Chanterelles vs. toxic Jack O'Lanterns; oak vs. conifer safety for Chicken of the Woods).
 3. **📳 "Pocket Shake" Zero-Screen Trail Interaction**: Double-shake your phone inside your pocket—CanopyCast detects the gesture via device accelerometer, recalibrates your GPS elevation, and reads your trail dispatch into your earbuds without turning on the screen.
-4. **📈 Models Hike Elevation Profiles**: Simulates an entire 4-mile mountain climb, mapping where foliage peaks and where mushrooms flush across elevation bands.
-5. **Speaks "Eyes-Up" Audio Dispatches**: Through **ElevenLabs** (with offline Web Speech fallback), CanopyCast converts dispatches into spoken audio so your phone stays in your pocket and your eyes stay on the trail.
-6. **🔬 In-App TabPFN Benchmark Suite**: Demonstrates TabPFN's superior small-sample accuracy and calibrated uncertainty over Random Forest and Gradient Boosting.
-7. **Tracks Multi-Model Telemetry**: Instrumented end-to-end with **Sentry Agent Tracing**, capturing latency, spans, and token metrics across the multi-model pipeline.
-8. **🖨️ Printable Pocket Field Card**: Generates a 1-page foldable paper field summary for battery-free trail carry.
+4. **🗺️ AllTrails/Strava GPX Route Engine & Visual Elevation Profile**: Upload any `.gpx` file or load pre-cached trail climbs. CanopyCast models dynamic laps along your route, renders an SVG trail profile color-coded by peak autumn foliage, and highlights fungal flushes.
+5. **📍 GPS Waypoint Export**: One-click download of an enriched `.gpx` file populated with TabPFN forecast waypoints, ready to import directly into your Garmin watch, AllTrails, Gaia GPS, or OnX Backcountry.
+6. **Speaks "Eyes-Up" Audio Dispatches**: Through **ElevenLabs** (with offline Web Speech fallback), CanopyCast converts dispatches into spoken audio so your phone stays in your pocket and your eyes stay on the trail.
+7. **🔬 In-App TabPFN Benchmark Suite**: Demonstrates TabPFN's superior small-sample accuracy and calibrated uncertainty over Random Forest and Gradient Boosting.
+8. **Tracks Multi-Model Telemetry**: Instrumented end-to-end with **Sentry Agent Tracing**, capturing latency, spans, and token metrics across the multi-model pipeline.
+9. **🖨️ Printable Pocket Field Card**: Generates a 1-page foldable paper field summary for battery-free trail carry.
 
 ---
 
